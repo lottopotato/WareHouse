@@ -30,7 +30,7 @@ class MCPClientManager {
 
   public newClient(
     config: Omit<MCPClientConfig, 'clientId'> & { clientId?: string },
-    authenticationToken: string,
+    authenticationToken: string | undefined,
     onNotification?: (notification: Notification) => void,
     verbose: boolean = false,
     connectionTimeout?: number,

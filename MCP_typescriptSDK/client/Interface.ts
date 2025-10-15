@@ -14,6 +14,7 @@ interface ClientCapabilities {
 
 interface ClientOptions {
   capabilities: ClientCapabilities;
+  connectionTimeout?: number; // in milliseconds
 };
 
 interface MCPClientConfig {

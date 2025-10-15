@@ -33,7 +33,7 @@ class MCPClient {
   private readonly id: string;
   private readonly client: Client;
   private readonly connectionUrl: string;
-  private readonly authenticationToken: string;
+  private readonly authenticationToken: string | undefined;
   private transport: StreamableHTTPClientTransport;
   private sessionId: string | undefined;
   private onNotification?: (notification: Notification) => void;
@@ -46,7 +46,7 @@ class MCPClient {
 
   constructor(
     config: MCPClientConfig, 
-    authenticationToken: string,
+    authenticationToken: string | undefined,
     verbose: boolean = false,
     onNotification?: (notification: Notification) => void,
     connectionTimeout?: number,
@@ -95,17 +95,21 @@ class MCPClient {
   };
 
   private startInactivityTimer() {
+    if (this.connectionTimeout <= 0) {
+      return; // No timeout set
+    };
+
     this.inactivityTimer = setInterval(() => {
       const now = new Date();
       const timeSinceLastActivity = now.getTime() - this.lastActivityTime.getTime();
-      if (timeSinceLastActivity > this.connectionTimeout) {
+      if (timeSinceLastActivity > this.connectionTimeout*1000) {
         this.disconnect();
       }
     }, 1000*30); // Check every 30 seconds
   };
 
   private clearInactivityTimer() {
-    clearInterval(this.inactivityTimer);
+    this.connectionTimeout > 0 && clearInterval(this.inactivityTimer);
   };
 
   public getInformation() {
@@ -159,13 +163,13 @@ class MCPClient {
       console.log(`MCPClient '${this.id}' disconnecting...`);
     }
       try {
-        const result = await this.client.callTool({
-          name: 'exclude_server_instance',
-          arguments: { 
-            token: this.authenticationToken, 
-            sessionId: this.sessionId
-          }
-        });
+        // const result = await this.client.callTool({
+        //   name: 'exclude_server_instance',
+        //   arguments: { 
+        //     token: this.authenticationToken, 
+        //     sessionId: this.sessionId
+        //   }
+        // });
 
         await this.client.close();
         this.isConnected = false;
@@ -174,9 +178,9 @@ class MCPClient {
           console.log(`MCPClient '${this.id}' disconnected.`);
         }
         this.clearInactivityTimer();
-        if (result) {
-          return result;
-        }
+        // if (result) {
+        //   return result;
+        // }
       } catch {
         // await this.connect();
       } finally {
@@ -277,39 +281,35 @@ class MCPClient {
     throw new Error('Max retries reached from getPrompt');
   };
 
-  // async fileUpload(
-  //   file: File,
-  //   fileType: string,
-  //   userName: string,
-  //   apiKey?: string,
-  //   url?: string, 
-  //   endpoint: string = '/file/upload') {
-  //   const connectionUrl = url || this.url;
-  //   if (connectionUrl === undefined) {
-  //     console.error('No URL provided for connection');
-  //     return;
-  //   };
-  //   const data = new FormData();
-  //   data.append('file', file);
-  //   data.append('fileType', fileType);
-  //   data.append('userName', userName);
-  //   if (apiKey) {
-  //     data.append('apiKey', apiKey);
-  //   }
-    
-  //   const result = await axios.post(
-  //     `${connectionUrl}${endpoint}`, 
-  //     data,
-  //     {
-  //     timeout: 100_000,
-  //     headers: {
-  //       'Access-Control-Allow-Origin': '*',
-  //     }
-  //   });
-  //   if (result) {
-  //     return result;
-  //   }
-  // };
+  async fileUpload(
+    file: File,
+    fileType: string,
+    userName: string,
+    url?: string, 
+    endpoint: string = '/file/upload') {
+    const connectionUrl = url || this.connectionUrl;
+    if (connectionUrl === undefined) {
+      console.error('No URL provided for connection');
+      return;
+    };
+    const data = new FormData();
+    data.append('file', file);
+    data.append('fileType', fileType);
+    data.append('userName', userName);
+
+    const result = await axios.post(
+      `${connectionUrl}${endpoint}`, 
+      data,
+      {
+      timeout: 100_000,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    });
+    if (result) {
+      return result;
+    }
+  };
 
 
   // async testPostCall(
